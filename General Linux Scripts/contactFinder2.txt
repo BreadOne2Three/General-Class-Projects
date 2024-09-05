@@ -1,0 +1,264 @@
+#!/bin/bash
+
+#!/bin/bash
+
+help_user() {
+	echo -e "\n\nUsage; $0 [options] <argument>"
+	echo "Available Options:"
+	echo -e " -i\tAllows user to create a new contact (enables -f, -l, -e, -n)"
+	echo -e " -f\tTakes the argument from the user for the first name of the new contact"
+	echo -e " -l\tTakes the argument from the user for the last name of the new contact"
+	echo -e " -e\tTakes the argument from the user for the email to reach the contact"
+	echo -e " -n\tTakes the argument from the user for the phone number to reach the contact"
+	echo -e " -p\tPrints the contacts within the file"
+	echo -e " -s\tSearches for specific contact. Supports regular expressions. Also is not case-sensitive. Prints all matching results."
+	echo -e " -k\tSorts the file by the appropriate parameter"
+	echo -e " -E\tEnables editting a contact using Regex (can be used by itself, with -N, -S, or -s). Is limited to only 1 contact."
+	echo -e " -N\tIf you know the number assigned to each contact, you can use -E with this to tell it to edit that number"
+	echo -e " -S\tMuch like -s, this option is used to specify a specific field in which to offer editing"
+	echo -e "\t(1 = first name, 2 = last name, 3 = email, 4 = phone number)"
+	echo -e " -c\tContact List File"
+	echo -e " -h\tShows list of options and usage"
+}
+
+
+parameter=2
+string="NULL"
+fname="NULL"
+lname="NULL"
+email="NULL"
+phone="NULL"
+filename="NULL"
+category="NULL"
+contactToEdit="NULL"
+fieldToSearch="NULL"
+numberToSearch="NULL"
+
+insert="no"
+printn="no"
+
+
+phone_regex="^[0-9]{1}-[0-9]{3}-[0-9]{3}|[0-9]{3}-[0-9]{3}|([0-9]{3})[0-9]{3}|[0-9]{3})-[0-9]{4}$"
+email_regex="^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$"
+
+while getopts f:l:e:n:c:s:k:t:S:N:E:iphL flag; do
+	case $flag in
+		i)
+			#Checks to see if user should insert contact (Required for options; f, l, e, and n)
+			insert="yes"
+			;;
+		f)
+			#assuming option -i is used, will take an argument for first name
+			fname=$OPTARG
+			;;
+		l)
+			#assuming option -i is used, will take an argument for last name
+			lname=$OPTARG
+			;;
+		e)
+			#assuming option -i is used, will take an argument for email
+			email=$OPTARG
+			;;
+		n)
+			#assuming option -i is used, will take an argument for phone number
+			phone=$OPTARG
+			;;
+		t)
+			category=$OPTARG
+			;;
+		L)
+			printn="yes"
+			;;
+		E)
+			editContact="yes"
+			contactToEdit=$OPTARG
+			;;
+		S)
+			searchField="yes"
+			fieldToSearch=$OPTARG
+			;;
+		N)
+			searchNumber="yes"
+			numberToSearch=$OPTARG
+			;;
+		c)
+			filename=$OPTARG
+			;;
+		p)
+			print="yes"
+			;;
+		s)
+			search="yes"
+			search_term=$OPTARG
+			;;
+		k)
+			sort="yes"
+			parameter=$OPTARG
+			;;
+		
+		h|--help)
+			help_user
+			#assumes user doesn’t know how to use options and exits to prevent inappropriate error messages
+			exit 0
+			;;
+		:)
+			echo "Option -${OPTARG}." 
+			;;
+		?)
+			echo "Invalid option: -${OPTARG}."
+			exit 7
+			;;
+	esac
+done
+
+
+
+if [ "$print" == "yes" ] && [ "$printn" == "no" ]
+then
+	cat $filename | awk -F: 'BEGIN{printf("%-26s %-30s %15s     %-15s\n", "Name", "Email", "Phone Number", "Category")} {printf("%-10s %-15s %-30s %15s    %-15s\n", $2, $3, $4, $5, $6)} END{print "—----END OF FILE—----"}'
+	exit 0
+elif [ "$print" == "yes" ] && [ "$printn" == "yes" ]
+then
+	cat $filename | awk -F: 'BEGIN{printf("%-5s %-26s %-30s %15s    %-15s\n", "Num.", "Name", "Email", "Phone Number", "Category")} {printf("%-5s %-10s %-15s %-30s %15s    %-15s\n", $1, $2, $3, $4, $5, $6)} END{print "—----END OF FILE—----"}'
+	exit 0
+fi
+
+if [ "$insert" == "yes" ]
+then
+	if [ "$fname" != "NULL" ]
+	then
+		if [ "$lname" != "NULL" ]
+		then
+			if [ "$email" != "NULL" ]
+			then
+				if [ "$phone" != "NULL" ]
+				then
+					if [ "$category" != "NULL" ]
+					then
+						counter=$(wc -l $filename | awk '{print $1}')
+						counter=$(($counter + 1))
+						string=$counter:$fname:$lname:$email:$phone:$category
+						
+					else
+						echo "Error; Missing Category Type"
+						exit 11
+					fi	
+				else
+					echo "Error; Missing Phone Number"
+					exit 4
+				fi
+			else
+				echo "Error; Missing Email"
+				exit 3
+			fi
+		else
+			echo "Error; Missing Last Name"
+			exit 2
+		fi
+	else
+		echo "Error; Missing First Name"
+		exit 1
+	fi
+fi
+
+if [ "$phone" != "NULL" ]
+then
+	if ! [[ "$phone" =~ $phone_regex ]]
+	then
+		echo "Error; Not a Valid Phone Number"
+		exit 10
+	fi
+fi
+
+if [ "$email" != "NULL" ]
+then
+	if ! [[ "$email" =~ $email_regex ]]
+	then
+		echo "Error; Not a Valid Email Address"
+		exit 9
+	fi
+fi
+
+if [ "$filename" == "NULL" ]
+then
+	echo "Error; Missing Contact List File"
+	exit 5
+fi
+
+
+if [ "$insert" == "yes" ]
+then
+	if [ "$string" != "NULL" ]
+	then
+		echo "$string"
+		echo "$string" >> "$filename"
+	fi
+fi	
+
+
+if [ "$search" == "yes" ] 
+then
+	if grep -q -i "$search_term" "$filename"
+	then
+		grep -i "$search_term" "$filename"
+	else
+		echo "Error; No Search Results or Keyword Empty"
+		exit 8
+	fi
+fi
+
+if [ "$sort" == "yes" ]
+then
+	if [ "$parameter" -lt 1 ] || [ "$parameter" -gt 5 ]
+	then
+		echo "Error; Invalid Sort Field. Please Input Digit 1-5"
+		exit 6
+	else
+		sort -t: -k $parameter $filename | awk -F: 'BEGIN{printf("%-26s %-30s %15s    %-15s\n", "Name", "Email", "Phone Number", "Category")} {printf("%-10s %-15s %-30s %15s    %-15s\n", $2, $3, $4, $5, $6)} END{print "—----END OF FILE—----"}'
+	fi
+fi	
+
+if [ "$editContact" == "yes" ]
+then
+	if [ "$contactToEdit" != "NULL" ]
+	then
+		if [ "$searchField" == "yes" ] && [ "$searchNumber" == "no" ]
+		then
+			if [ "$fieldToSearch" != "NULL" ]
+			then
+				
+			else
+				echo "Error; Search Field is Empty, Please Provide a Number Between 1-6"
+				exit 13
+			fi
+		elif [ "$searchNumber" == "yes" ] && [ "$searchField" == "no" ]
+		then
+			if [ "$numberToSearch" != "NULL" ]
+			then
+				numberTemp="$(cat $filename | awk -F: '{print $1}')"
+				if [ "$numberTemp" == "$searchNumber" ]
+				then
+					
+                    if [ "$fname" != "NULL" ] && [ "$lname" != "NULL" ] && [ "$email" != "NULL" ] && [ "$phone" != "NULL" ] && [ "$category" != "NULL" ] && [ "$filename" != "NULL" ]
+                    then
+                        newString=$numberToSearch:$fname:$lname:$email:$phone:$category
+					    sed -i "${numberToSearchs}s/.*/${newString}/" $filename
+                    else
+                        echo "Error; No Inputs to Change to Received. Make sure you're using '-f' '-l' '-n' '-e' '-t' and '-c'.\nInput 'contactFinder.sh -h' or 'contactFinder.sh -help' for more detail"
+                        exit 13
+			else
+				echo "Error; Number to Search is Empty. Please Provide a Number that Exists in File"
+				exit 13
+			fi
+		else
+			echo "Error; Can't use both '-N' and '-S' while editing contact"
+			exit 13
+		fi
+	else
+		echo "Error; No Search Term Provided"
+		exit 12
+	fi
+fi
+
+
+exit 0

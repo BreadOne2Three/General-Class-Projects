@@ -1,0 +1,30 @@
+#!/bin/bash
+
+#0 1 * * 2 autoupdate.sh
+
+allDone="All done updating, big boss!"
+notAllDone="Something Went Wrong on"
+
+
+success=$(sudo apt-get update)
+
+if [ "$success" -ne 0 ]
+then
+	echo "$notAllDone" >> /var/log/cronupdate.log
+    date +"%Y-%m-%d %H:%M:%S" >> /var/log/cronupdate.log
+	echo -e "\n" >> /var/log/cronupdate.log
+fi
+
+success=$(sudo apt-get upgrade)
+
+if [ "$success" -eq 0 ]
+then
+	echo "$allDone"
+	echo "$allDone" >> /var/log/cronupdate.log
+    date +"%Y-%m-%d %H:%M:%S" >> /var/log/cronupdate.log
+	echo -e "\n" >> /var/log/cronupdate.log
+else
+	echo "$notAllDone" >> /var/log/cronupdate.log
+    date +"%Y-%m-%d %H:%M:%S" >> /var/log/cronupdate.log
+	echo -e "\n" >> /var/log/cronupdate.log
+fi
